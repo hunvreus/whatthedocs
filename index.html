@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>What The Docs</title>
+  <!-- <link href="https://unpkg.com/tailwindcss@^1.0/dist/tailwind.min.css" rel="stylesheet"> -->
+  <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.x.x/dist/alpine.min.js" defer></script>
+  <script>
+    function operationColor (operation) {
+      switch(operation) {
+        case 'patch':
+          return 'bg-purple-500';
+          break;
+        case 'delete':
+          return 'bg-red-500';
+          break;
+        case 'put':
+        case 'post':
+          return 'bg-green-500';
+          break;
+        default:
+          return 'bg-blue-500';
+          break;
+      }
+    }
+  </script>
+</head>
+<body>
+  <div
+    class="wtd-wrapper"
+    x-data="{ reference: {} }"
+    x-init="fetch('https://raw.githubusercontent.com/OAI/OpenAPI-Specification/master/examples/v3.0/petstore-expanded.json')
+      .then(response => response.json())
+      .then(data => { reference = data })"
+  >
+    <template x-if="reference !== undefined && reference != {}">
+      <div>
+        <!-- Info -->
+        <template x-if="reference.info !== undefined">
+          <header class="wtd-info">
+            <ul class="wtd-meta">
+              <li>
+                <a class="wtd-source" target="_blank" href="https://raw.githubusercontent.com/OAI/OpenAPI-Specification/master/examples/v3.0/petstore-expanded.json">Source</a>
+              </li>
+              <template x-if="reference.info.termsOfService !== undefined">
+                <li>
+                  <a class="wtd-tos" x-bind:href="reference.info.termsOfService">Terms of Service</a>
+                </li>
+              </template>
+              <template x-if="reference.info.version !== undefined">
+                <li>
+                  <span class="wtd-version">Version: <span x-text="reference.info.version"></span></span>
+                </li>
+              </template>
+              <template x-if="reference.info.license !== undefined">
+                <li>
+                  License: 
+                  <template x-if="reference.info.license.url !== undefined && reference.info.license.url != ''">
+                    <a lass="wtd-license" x-bind:href="reference.info.license.url" x-text="reference.info.license.name"></a>
+                  </template>
+                  <template x-if="reference.info.license.url === undefined || reference.info.license.url == ''">
+                    <span class="wtd-license" x-text="reference.info.license.name"></span>
+                  </template>
+                </li>
+              </template>
+            </ul>
+            <h1 x-text="reference.info.title"></h1>
+            <template x-if="reference.info.version !== undefined">
+              <p class="wtd-description" x-text="reference.info.description"></p>
+            </template>
+          </header>
+        </template>
+
+        <div class="wtd-container">
+          <!-- List of endpoints -->
+          <template x-if="reference.paths !== undefined">
+            <div>
+              <h2>Endpoints</h2>
+              <div class="wtd-endpoints">
+                <template x-for="[path, pathDetails] in Object.entries(reference.paths)" :key="path">
+                  <div>
+                    <template x-for="[operation, operationDetails] in Object.entries(pathDetails)" :key="operation">
+                      <div class="wtd-endpoint">
+                        <!-- Path -->
+                        <h3>
+                          <span
+                            x-text="operation"
+                            x-bind:class="operationColor(operation)"
+                            class="wtd-operation">
+                          </span>
+                          <span x-text="path" class="wtd-path"></span>
+                        </h3>
+                        
+                        <!-- Description -->
+                        <template x-if="operationDetails.description">
+                          <div x-text="operationDetails.description" class="wtd-description"></div>
+                        </template>
+                        
+                        <!-- Parameters -->
+                        <template x-if="operationDetails.parameters !== undefined && operationDetails.parameters.length > 0">
+                          <div>
+                            <h4>Parameters</h4>
+                            <table class="wtd-parameters">
+                              <thead>
+                                <th>Name</th>
+                                <th></th>
+                                <th>Type</th>
+                                <th>In</th>
+                                <th>Description</th>
+                              </thead>
+                              <tbody>
+                                <template x-for="parameter in operationDetails.parameters" :key="parameter">
+                                  <tr class="border-b">
+                                    <td>
+                                      <span x-text="parameter.name"></span>
+                                    </td>
+                                    <td><template x-if="parameter.required"><span class="text-red-400">Required</span></template></td>
+                                    <td></td>
+                                    <td x-text="parameter.in"></td>
+                                    <td>
+                                      <div x-text="parameter.description"></div>
+                                    </td>
+                                  </tr>
+                                </template>
+                              </tbody>
+                            </table>
+                          </div>
+                        </template>
+
+                        <!-- Responses -->
+                        <template x-if="operationDetails.responses !== undefined">
+                          <div>
+                            <h4>Responses</h4>
+                            <table class="wtd-responses">
+                              <thead>
+                                <th>Code</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th>Sample</th>
+                              </thead>
+                              <tbody>
+                                <template x-for="[response, responseDetails] in Object.entries(operationDetails.responses)" :key="response">
+                                  <tr class="border-b">
+                                    <td x-text="response"></td>
+                                    <td></td>
+                                    <td x-text="responseDetails.description"></td>
+                                    <td></td>
+                                  </tr>
+                                </template>
+                              </tbody>
+                            </table>
+                          </div>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+
+          <!-- List of schemas -->
+          <template x-if="reference.components !== undefined && reference.components.schemas !== undefined">
+            <div>
+              <h2>Schemas</h2>
+              <div class="wtd-schemas">
+                <template x-for="[schema, schemaDetails] in Object.entries(reference.components.schemas)" :key="schema">
+                  <div>
+                    
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+  </div>    
+</body>
+</html>

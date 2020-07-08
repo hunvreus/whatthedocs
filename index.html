@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>What The Docs</title>
   <!-- <link href="https://unpkg.com/tailwindcss@^1.0/dist/tailwind.min.css" rel="stylesheet"> -->
-  <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.x.x/dist/alpine.min.js" defer></script>
+  <script src="https://unpkg.com/deepmerge@4.2.2/dist/umd.js"></script>
   <script>
-    function operationColor(operation) {
+    const openApiRef = 'https://raw.githubusercontent.com/OAI/OpenAPI-Specification/master/examples/v3.0/petstore-expanded.json';
+    function WTDOperationColor(operation) {
       switch(operation) {
         case 'patch':
           return 'bg-purple-500';
@@ -24,46 +25,85 @@
           break;
       }
     }
-    function formatString(schema) {
+
+    // Returns the formatted type for display (set html to 'false' for string)
+    function WTDGetTypeString(schema, html) {
+      // TODO: Add support for Obj? Not sure it's allowed since there are $ref
       var format = '';
-      if (schema.$ref !== undefined) {
-        format += 'hello';
-      }
-      else {
+      if (schema.$ref === undefined) {
         switch(schema.type) {
           case 'integer':
             format += 'integer';
             if (schema.format !== undefined) format += ' ('+ schema.format +')';
             break;
           case 'array':
-            format += 'array['+ formatString(schema.items) +']';
-            break;
-          case '$ref':
-            format += '';
-            // TODO: figure out how to handle merge method on schemas ahead of time
+            format += 'array['+ WTDGetTypeString(schema.items) +']';
             break;
           default:
             format += schema.type;
             break;
         }
       }
+      else {
+        var schemaId = schema.$ref.substring(schema.$ref.lastIndexOf('/') + 1);
+        if (html !== undefined && html == false)  {
+          format += schemaId;
+        }
+        else {
+          format += '<a href="#wtd-schemas-'+ schemaId +'">'+ schemaId +'</a>';
+          // TODO: make sure that schemaId is a string
+        }
+      }
       return format;
     }
+
+    // Replace the reference ($ref) with the schema object
+    function WTDReplaceRef(schema, schemas) {
+      if (schema.$ref === undefined) throw 'Can not replace, schema doesn\'t have a reference.';
+      let schemaId = schema.$ref.substring(schema.$ref.lastIndexOf('/') + 1); // Extract the schema id
+      return schemas[schemaId];
+    }
+
+    // Deep merge of schema objects if needed (OpenAPI "Polymorphism" BS)
+    function WTDAllOf(obj, schemas) {
+      if (obj.allOf !== undefined) {
+        var result = [];
+        for (var i = 0; i < obj.length; i++) {
+          if (obj[i].$ref !== undefined) {
+            result[i] = WTDReplaceRef(obj[i], schemas);
+          }
+          else {
+            result[i] = obj[i];
+          }
+        }
+        return deepmerge.all(result);
+      }
+      else {
+        return obj;
+      }
+    }
+
+    // Fetches the Open API JSON file
+    // TODO: support other formats (YAML?)
+    function WTDFetch(url) {
+
+    }
   </script>
+  <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.x.x/dist/alpine.min.js" defer></script>
 </head>
 <body>
-  <div
-    class="wtd-wrapper"
-    x-data="{ reference: {} }"
-    x-init="fetch('https://raw.githubusercontent.com/OAI/OpenAPI-Specification/master/examples/v3.0/petstore-expanded.json')
-      .then(response => response.json())
-      .then(data => { reference = data })"
-  >
+  <div class="wtd-wrapper" x-data="{ reference: {} }" x-init="fetch(openApiRef)
+    .then(response => response.json())
+    .then(data => reference = data );">
     <template x-if="reference !== undefined && reference != {}">
       <div>
         <!-- Info -->
         <template x-if="reference.info !== undefined">
           <header class="wtd-info">
+            <!-- Title -->
+            <h1 x-text="reference.info.title"></h1>
+
+            <!-- Meta info -->
             <ul class="wtd-meta">
               <li>
                 <a class="wtd-source" target="_blank" href="https://raw.githubusercontent.com/OAI/OpenAPI-Specification/master/examples/v3.0/petstore-expanded.json">Source</a>
@@ -80,7 +120,7 @@
               </template>
               <template x-if="reference.info.license !== undefined">
                 <li>
-                  License: 
+                  License:
                   <template x-if="reference.info.license.url !== undefined && reference.info.license.url != ''">
                     <a lass="wtd-license" x-bind:href="reference.info.license.url" x-text="reference.info.license.name"></a>
                   </template>
@@ -90,7 +130,8 @@
                 </li>
               </template>
             </ul>
-            <h1 x-text="reference.info.title"></h1>
+
+            <!-- Description -->
             <template x-if="reference.info.version !== undefined">
               <p class="wtd-description" x-text="reference.info.description"></p>
             </template>
@@ -116,12 +157,12 @@
                           </span>
                           <span x-text="path" class="wtd-path"></span>
                         </h3>
-                        
+
                         <!-- Description -->
                         <template x-if="operationDetails.description">
                           <div x-text="operationDetails.description" class="wtd-description"></div>
                         </template>
-                        
+
                         <!-- Parameters -->
                         <template x-if="operationDetails.parameters !== undefined && operationDetails.parameters.length > 0">
                           <div>
@@ -142,7 +183,7 @@
                                     </td>
                                     <td><template x-if="parameter.required"><span class="text-red-400">Required</span></template></td>
                                     <td>
-                                      <div x-text="formatString(parameter.schema)">
+                                      <div x-text="WTDGetTypeString(parameter.schema)">
                                     </td>
                                     <td x-text="parameter.in"></td>
                                     <td>
@@ -170,7 +211,12 @@
                                 <template x-for="[response, responseDetails] in Object.entries(operationDetails.responses)" :key="response">
                                   <tr class="border-b">
                                     <td x-text="response"></td>
-                                    <td></td>
+                                    <td>
+                                      <!-- TODO: How to handle multiple mime types? -->
+                                      <template x-if="responseDetails.content !== undefined && responseDetails.content['application/json'] !== undefined">
+                                        <div x-html="WTDGetTypeString(responseDetails.content['application/json'].schema)"></div>
+                                      </template>
+                                    </td>
                                     <td x-text="responseDetails.description"></td>
                                     <td></td>
                                   </tr>
@@ -194,7 +240,7 @@
               <div class="wtd-schemas">
                 <template x-for="[schema, schemaDetails] in Object.entries(reference.components.schemas)" :key="schema">
                   <div>
-                    <h3 x-text="schema"></h3>
+                    <h3 x-bind:id="'wtd-schemas-'+ schema" x-text="schema"></h3>
                     <template x-if="schemaDetails.properties !== undefined">
                       <table class="wtd-schema-properties">
                         <thead>
@@ -229,6 +275,6 @@
         </div>
       </div>
     </template>
-  </div>    
+  </div>
 </body>
 </html>

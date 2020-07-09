@@ -157,7 +157,7 @@
             <!-- Description -->
             <template x-if="reference.info.version !== undefined">
               <p
-                class="mt-3 sm:mt-4 text-xl leading-7"
+                class="mt-4 sm:mt-4 text-xl leading-7"
                 x-text="reference.info.description"></p>
             </template>
           </header>
@@ -166,15 +166,15 @@
         <div class="wtd-container">
           <!-- List of endpoints -->
           <template x-if="reference.paths !== undefined">
-            <div class="mt-6">
-              <h2 class="text-2xl leading-7 font-extrabold text-gray-900">Endpoints</h2>
+            <div class="mt-12">
+              <h2 id="wtd-endpoints" class="text-2xl leading-7 font-extrabold text-gray-900">Endpoints</h2>
               <div>
                 <template x-for="[path, pathDetails] in Object.entries(reference.paths)" :key="path">
                   <div>
                     <template x-for="[operation, operationDetails] in Object.entries(pathDetails)" :key="operation">
                       <div class="bg-white overflow-hidden shadow rounded-lg mt-6">
                         <!-- Path -->
-                        <h3 class="bg-gray-800 text-white text-sm font-mono px-4 py-5 sm:p-6">
+                        <h3 x-bind:id="'wtd-endpoints--'+ operation +'--'" class="bg-gray-800 text-white text-sm font-mono px-4 py-5 sm:p-6">
                           <span
                             x-text="operation"
                             x-bind:class="WTDOperationColor(operation)"
@@ -250,7 +250,7 @@
 
           <!-- List of schemas -->
           <template x-if="reference.components !== undefined && reference.components.schemas !== undefined">
-            <div class="mt-6">
+            <div class="mt-12">
               <h2 class="text-2xl leading-7 font-extrabold text-gray-900">Schemas</h2>
               <div class="bg-white overflow-hidden shadow rounded-lg mt-6">
                 <template x-for="[schema, schemaDetails] in Object.entries(reference.components.schemas)" :key="schema">
